@@ -59,13 +59,16 @@ which also holds the 68030 core.
   thing; and a 68882 FPU, as if the optional chip were fitted
 - **Macintosh LC II**: 4, 6, 8 or 10 MB (4 MB on the board and a SIMM pair);
   built-in video at 640×480 in black and white up to 256 colours, or
-  512×384 up to thousands; Egret for the ADB keyboard and mouse, the clock
+  512×384 up to thousands (32,768); Egret for the ADB keyboard and mouse, the clock
   and parameter RAM; the V8's Apple Sound Chip
 - **Macintosh LC III**: 4, 8, 16 or 20 MB; Sonora's full 32-bit memory map
-  and 1 MB of video RAM (up to thousands of colours at 640×480 too); Egret;
-  Sonora's stereo sound
+  and 1 MB of video RAM (up to thousands of colours at 640×480 too, as a
+  real LC III with its VRAM SIMM; with only the 512 KB on its board it
+  has 256 there); Egret; Sonora's stereo sound
 - A 13-inch (640×480) or 12-inch (512×384) monitor, chosen on the setup
-  screen; 256 colours by default
+  screen, whose buttons say how many colours each one gets on the model
+  (LC II: up to 256 or 32,768; LC III: up to 32,768 on both); 256 colours
+  by default on both
 - **Always in real time** (sound, clock, mouse): the 68030 runs as fast as
   the board keeps up, at most the model's own speed. On the Tab5 that's
   about 92% of an LC II, and 27% of an LC III (see Limitations); the web
@@ -176,8 +179,8 @@ Tab5 is the only target: a build for any other stops with a message.
    normal); then comes its desktop in 256 colours.
 
 <p align="center">
-  <img src="docs/images/tab5-setup.png" width="70%" alt="The Tab5's setup screen: model LC II or LC III, the LC III's memory 4, 8, 16 or 20 MB, monitor 640 x 480 or 512 x 384; WiFi, Bluetooth, Disks and Start buttons">
-  <br><sub>The setup screen on the Tab5, with the LC III and 20 MB chosen (its status lines left out)</sub>
+  <img src="docs/images/tab5-setup.png" width="70%" alt="The Tab5's setup screen: model LC II or LC III, the LC III's memory 4, 8, 16 or 20 MB, monitor 640 x 480 or 512 x 384, both up to 32,768 colours; WiFi, Bluetooth, Disks and Start buttons">
+  <br><sub>The setup screen on the Tab5, with the LC III, 20 MB and the 13-inch monitor chosen; under each monitor, its colours on that model (the status lines left out)</sub>
 </p>
 
 ## Using it
@@ -293,8 +296,10 @@ options and the lessons learned along the way.
   time in 256 colours at 640×480; the setup screen and the pointer work
   (LC II with 8 MB, LC III with 8 and 20 MB). Not tried by
   hand yet: sound on the speaker, a Bluetooth keyboard and mouse, the Tab5
-  Keyboard; not tried yet: the 12-inch monitor, other colour depths
-  (thousands on the LC III).
+  Keyboard. The 12-inch monitor and thousands of colours are checked in
+  the desktop build only: both machines start in 256 colours on either
+  monitor; the LC III takes thousands on both, the LC II at 512×384 (and
+  turns them down at 640×480, as on a real LC II).
 - RAM sizes: the LC III takes 4, 8, 16 or 20 MB, the sizes its ROM finds
   with the RAM in one piece (12 MB isn't one of them).
 - The CPU's pace for each model is an estimate, not yet calibrated against

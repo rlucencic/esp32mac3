@@ -126,21 +126,34 @@ void mac_pram_defaults(uint8_t *pram, mac_model_t model)
     pram[0x0F] = 'c';
     pram[0x01] = 0x80;
     pram[0x02] = 0x4F;
-    /* The LC II's video slot PRAM as the ROM writes it, but in 256 colours
-     * ($83; $80 is black and white): the built-in video (board $0029, the
-     * 13" monitor's sense 6 at $5A). The ROM keeps it while the board (and
-     * monitor) match. The LC III's ROM starts in 256 colours by itself.
-     */
-    if (model == MAC_MODEL_LC2) {
-        pram[0x57] = 0x29;
-        pram[0x58] = 0x83;
-        pram[0x59] = 0xA6;
-        pram[0x5A] = 0x06;
-    }
+    mac_pram_monitor(pram, model, MAC_MONITOR_13);
     pram[0x78] = 0x00;                  /* startup disk: none chosen */
     pram[0x79] = 0x01;
     pram[0x7A] = 0xFF;
     pram[0x7B] = 0xFE;
+}
+
+/* The LC II's video slot PRAM, as the ROM writes it for the monitor but in
+ * 256 colours ($83; $80 is black and white): the built-in video (board
+ * $0029, the monitor's sense at $5A: 6 the 13", 2 the 12"). The ROM keeps
+ * it while the board and the monitor match; for another monitor it would
+ * start in black and white: then this one's entry, in colour. The LC III's
+ * ROM starts either monitor in 256 colours by itself.
+ */
+void mac_pram_monitor(uint8_t *pram, mac_model_t model, mac_monitor_t monitor)
+{
+    if (model != MAC_MODEL_LC2) {
+        return;
+    }
+    bool m12 = monitor == MAC_MONITOR_12;
+    uint8_t sense = m12 ? 0x02 : 0x06;
+    if (pram[0x57] != 0x29 || pram[0x5A] != sense) {
+        pram[0x56] = 0x00;
+        pram[0x57] = 0x29;
+        pram[0x58] = 0x83;
+        pram[0x59] = m12 ? 0xA2 : 0xA6;
+        pram[0x5A] = sense;
+    }
 }
 
 static void pram_write(uint8_t address, uint8_t value)

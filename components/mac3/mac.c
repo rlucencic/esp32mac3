@@ -387,6 +387,7 @@ bool mac_init(const mac_config_t *config)
         mac_pram_defaults(mac.pram, mac.model);
         mac.pram_dirty = true;
     }
+    mac_pram_monitor(mac.pram, mac.model, config->monitor);
     mac.pram_changed = config->pram_changed;
     mac.disk_ejected = config->disk_ejected;
 

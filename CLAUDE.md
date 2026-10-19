@@ -62,7 +62,10 @@ runtime's profiler), `R <model 0|1> <ram MB> [monitor 0|1]` restart as the
 LC II (4/6/8/10 MB) or the LC III (4/8/16/20 MB) with the 13" or 12"
 monitor, `n` interrupt switch. Touches on the Tab5: the picture is 960x720
 at x=160; setup screen Start `t 1065 637`, Model `t 440|795 251`, the
-corner long-press `t 1270 10 2500`. A menu: `P 20 10 1`, `P 60 28 1`,
+corner long-press `t 1270 10 2500`. The Memory and Monitor rows follow the
+model (`choice_names()`); the Monitor buttons' second line is the colours
+each monitor gets: LC II up to 256 at 640x480, 32,768 at 512x384; LC III
+32,768 at both. A menu: `P 20 10 1`, `P 60 28 1`,
 `P 62 29 0` (a second apart) chooses About This Computer.
 
 ## Layout
@@ -167,6 +170,21 @@ $40800000 (ROMBase), in 24-bit mode at $800000.
   has one V8 record (VIA ID bits as on the LC, which MAME gives every V8).
   Mac OS 7.6.1's About This Computer says "Macintosh" for all three (LC,
   LC II, LC III), so it doesn't show.
+- **The 12" monitor: black and white on the LC II, a hang on the LC III.**
+  The LC II's ROM keeps its video PRAM ($56-$5A: board $0029, mode $58,
+  $80 = 1 bit ... $84 = 16 bits, sense $5A) only while it matches the
+  monitor, else resets the mode to $80: `mac_pram_monitor()` (`egret.c`,
+  from every `mac_init()`) writes the 12" values ($A2, sense 2) when they
+  don't. The LC III's ROM starts Sonora in the 13" mode ($86) whatever the
+  monitor and waits for a VBL before it senses it: the VBL only ran in the
+  monitor's own mode, so with the 12" it waited at $4080448C forever.
+  `sonora_video_on()` is now true in any of Sonora's modes ($01 $02 $06
+  $09 $0B); the picture is still drawn only in the monitor's own.
+- **The setup screen's colour counts are what the ROMs accept**: PRAM $58
+  set to $84 (16 bits) is kept by the LC II at 512x384 only (reset to $80
+  at 640x480: 512 KB of VRAM), by the LC III at both (1 MB, as MAME's
+  Sonora; a real LC III needs its VRAM SIMM for that at 640x480). The
+  Monitor buttons say so per model (`choice_names()`, two lines).
 
 ## Testing
 
@@ -194,7 +212,12 @@ $40800000 (ROMBase), in 24-bit mode at $800000.
   of PSRAM (3.1 MB with the setup screen open). The setup screen's rows,
   the pointer (`P`), About This Computer (8,192K on the LC II) checked.
   Not checked by ear or hand: sound, Bluetooth, the Tab5 Keyboard; not
-  tried: the 12" monitor, other depths (thousands on the LC III).
+  tried on the board: the 12" monitor, other depths.
+- Checked on the host (2026-10-18): both models start in 256 colours on
+  either monitor (13" -> 12" -> 13"); thousands draw right on the LC III at
+  both sizes and on the LC II at 512x384.
+- Checked on the Tab5 (2026-10-18): the setup screen's two-line Monitor
+  buttons for the LC II and the LC III (`docs/images/tab5-setup.png`).
 
 ## Open items
 

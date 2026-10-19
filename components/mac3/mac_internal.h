@@ -260,7 +260,7 @@ uint8_t ariel_read(uint32_t address);
 void ariel_write(uint32_t address, uint8_t value);
 uint8_t sonora_vctrl_read(uint32_t address);
 void sonora_vctrl_write(uint32_t address, uint8_t value);
-bool sonora_video_on(void);         /* a mode set: vertical blanking interrupts */
+bool sonora_video_on(void);         /* a mode runs: vertical blanking interrupts */
 void video_mode_changed(void);
 void video_screen_size(int *w, int *h);
 int video_screen_depth(void);

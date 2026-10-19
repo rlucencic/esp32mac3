@@ -30,8 +30,8 @@ typedef enum {
 } mac_model_t;
 
 typedef enum {
-    MAC_MONITOR_13,         /* 13" RGB: 640 x 480 (LC II up to 256 colours, LC III thousands) */
-    MAC_MONITOR_12,         /* 12" RGB: 512 x 384, up to thousands */
+    MAC_MONITOR_13,         /* 13" RGB: 640 x 480 (LC II up to 256 colours, LC III 32,768) */
+    MAC_MONITOR_12,         /* 12" RGB: 512 x 384, up to 32,768 colours */
 } mac_monitor_t;
 
 #define MAC_SCREEN_MAX_WIDTH    640
@@ -85,6 +85,11 @@ typedef struct {
  * it for parameter RAM that isn't valid)
  */
 void mac_pram_defaults(uint8_t *pram, mac_model_t model);
+
+/* The video's parameter RAM for this monitor: kept if it is for it (its
+ * depth too), else the monitor's in 256 colours (mac_init does it)
+ */
+void mac_pram_monitor(uint8_t *pram, mac_model_t model, mac_monitor_t monitor);
 
 /* Name of a known ROM ("Macintosh LC II", "Macintosh LC III") and its model; NULL if the image
  * isn't a ROM this emulator knows how to patch

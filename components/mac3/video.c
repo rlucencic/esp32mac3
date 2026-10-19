@@ -119,9 +119,18 @@ static int sonora_mode_id(void)
     return mac.monitor == MAC_MONITOR_12 ? 0x02 : 0x06;
 }
 
+/* Any of Sonora's modes runs the video timing, and with it the vertical
+ * blanking interrupt (as MAME's: the ROM starts in the 13" mode, $86,
+ * whatever the monitor, and waits for one before it senses the monitor)
+ */
 bool sonora_video_on(void)
 {
-    return (ar.mode & 0x1F) == sonora_mode_id();
+    switch (ar.mode & 0x1F) {
+    case 0x01: case 0x02: case 0x06: case 0x09: case 0x0B:
+        return true;
+    default:
+        return false;
+    }
 }
 
 uint8_t sonora_vctrl_read(uint32_t address)
@@ -209,7 +218,7 @@ void video_render_line(int y, uint16_t *dst)
     video_screen_size(&w, &h);
     int code = depth_code();
     if (y < 0 || y >= h || mac.vram == NULL || code > 4 ||
-        (ar.sonora && ((ar.mode & 0x80) || !sonora_video_on()))) {
+        (ar.sonora && ((ar.mode & 0x80) || (ar.mode & 0x1F) != sonora_mode_id()))) {
         memset(dst, 0, w * sizeof(uint16_t));
         return;
     }
