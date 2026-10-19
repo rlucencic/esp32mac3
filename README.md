@@ -14,6 +14,11 @@
 </p>
 
 <p align="center">
+  <b>Work in progress:</b> not everything has been tested, and games and demos may or may not
+  work satisfactorily.
+</p>
+
+<p align="center">
   <img alt="Mac OS 7.6.1 starting on the Macintosh LC II: the Mac OS logo in colour, Welcome to Mac OS" src="docs/images/lc2-welcome.png" width="49%">
   <img alt="The Macintosh LC II with Mac OS 7.6.1: About This Computer, total memory 10,240K, largest unused block 8,423K" src="docs/images/lc2-about.png" width="49%">
   <br>
