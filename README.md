@@ -37,18 +37,20 @@ card go into three drives. A setup screen on the touch panel, and a web
 page on your network, handle everything else.
 
 It's the 68030 sibling of
-[esp32mac2](https://github.com/rlucencic/esp32mac2) (Macintosh LC and II,
-a 68020) and [esp32mac](https://github.com/rlucencic/esp32mac) (the compact
+[esp32mac2](https://github.com/rlucencic/esp32mac2) (Macintosh LC and II, a
+68020) and [esp32mac](https://github.com/rlucencic/esp32mac) (the compact
 black-and-white Macs: Plus, SE and Classic), next to
 [esp32ste](https://github.com/rlucencic/esp32ste) (Atari STE),
 [esp32cpc](https://github.com/rlucencic/esp32cpc) (Amstrad CPC),
 [esp32zx](https://github.com/rlucencic/esp32zx) (ZX Spectrum),
 [esp32cbm](https://github.com/rlucencic/esp32cbm) (Commodore 64 and 128),
 [esp32xl](https://github.com/rlucencic/esp32xl) (Atari 800XL and 130XE),
-[esp32msx](https://github.com/rlucencic/esp32msx) (MSX1 and MSX2) and
-[esp32gs](https://github.com/rlucencic/esp32gs) (Apple IIGS); all are built
-on the shared runtime [esp32emu](https://github.com/rlucencic/esp32emu),
-which also holds the 68030 core.
+[esp32msx](https://github.com/rlucencic/esp32msx) (MSX1 and MSX2),
+[esp32gs](https://github.com/rlucencic/esp32gs) (Apple IIGS) and
+[esp32coco](https://github.com/rlucencic/esp32coco) (Tandy Color Computer 2
+and 3); all are built on the shared runtime
+[esp32emu](https://github.com/rlucencic/esp32emu), which also holds the
+68030 core.
 
 ## Features
 
