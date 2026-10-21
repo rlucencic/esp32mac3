@@ -168,6 +168,10 @@ uint64_t mac_disk_size(int drive);
  * after the last write); false if not known. Safe to call from another task.
  */
 bool mac_disk_space(int drive, uint64_t *free_bytes, uint64_t *size);
+/* The disk's bytes as the Mac sees them (its volume from 0); false past
+ * its end (the host build's dumps)
+ */
+bool mac_disk_read(int drive, uint64_t offset, void *buf, uint32_t len);
 
 /* Make a blank disk image of `bytes` (a multiple of 512) */
 bool mac_disk_create(const char *path, uint32_t bytes);

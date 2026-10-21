@@ -221,15 +221,16 @@ $40800000 (ROMBase), in 24-bit mode at $800000.
 - **Free disk space** (web page): each drive's HFS/MFS/HFS+ volume
   (`mac_disk_space()`, esp32emu's `diskspace`), counted in `sony_frame()`
   at insert and a second after the last write. Tab5 (2026-10-21):
-  a 256 MB Mac OS 7.6.1 disk 114118656 of 255987712. A read-only `.dmg` (UDRO) shows
-  none: its data fork holds only the non-zero chunks (open item).
+  a 256 MB Mac OS 7.6.1 disk 114118656 of 255987712.
+- **`.dmg` chunks** (2026-10-21): `hdiutil` images of an HFS+ volume with
+  files, bare and behind an Apple partition map, read through
+  `MAC_DUMP=1:<file>` (the disk as the Mac sees it): UDRO and UDRW equal
+  to the raw (UDTO) image byte for byte, the free space the same; UDZO
+  refused ("a compressed .dmg: hdiutil convert -format UDRO"). A UDRO
+  used to be taken as its data fork, the zeros left out: a wrong disk.
 
 ## Open items
 
-- A read-only `.dmg` (UDRO, `hdiutil convert -format UDRO`) is taken as
-  an uncompressed one, but its data fork leaves out the runs of zeros (a
-  10 MB volume in 1 MB): the Mac gets a short, wrong disk. Refuse it, or
-  expand it like the compressed kinds (found 2026-10-21).
 - The CPU's speed on the board: a faster interpreter (a direct opcode fetch
   from RAM/ROM pages, say) would help the LC III most.
 - The LC II's BoxFlag (an LC's, see the lessons).

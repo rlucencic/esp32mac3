@@ -35,6 +35,7 @@
  *   MAC_EGRET                log Egret's commands
  *   MAC_WAV=<file>           record the sound (22255 Hz mono WAV)
  *   MAC_QUIET                no frame summary
+ *   MAC_DUMP=<d>:<file>      at the end, drive d's disk as the Mac sees it
  *   MAC_DEBUG=<port>         serve the debugger (esp32emu's docs/debugger.md) on
  *                            127.0.0.1:<port> and run in real time until killed
  */
@@ -509,6 +510,24 @@ int main(int argc, char **argv)
                        (unsigned long long)size);
             }
         }
+    }
+    const char *dump = getenv("MAC_DUMP");      /* <drive 1-3>:<file>: the disk as the Mac sees it */
+    if (dump && dump[0] >= '1' && dump[0] <= '3' && dump[1] == ':') {
+        FILE *f = fopen(dump + 2, "wb");
+        static uint8_t block[65536];
+        uint64_t at = 0;
+        while (f && mac_disk_read(dump[0] - '1', at, block, sizeof(block))) {
+            fwrite(block, 1, sizeof(block), f);
+            at += sizeof(block);
+        }
+        while (f && mac_disk_read(dump[0] - '1', at, block, 512)) {
+            fwrite(block, 1, 512, f);
+            at += 512;
+        }
+        if (f) {
+            fclose(f);
+        }
+        printf("drive %c: %llu bytes dumped\n", dump[0], (unsigned long long)at);
     }
     if (out) {
         write_ppm(out);

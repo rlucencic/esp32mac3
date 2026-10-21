@@ -18,6 +18,7 @@
  * blocks in dQDrvSz/dQDrvSz2).
  */
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <strings.h>
 #include <sys/stat.h>
@@ -184,10 +185,20 @@ static const uint32_t hd_icon[64] = {
 };
 static const char hd_where[] = "\x0A" "Disk image";
 
+/* A .dmg's disk as runs of sectors: in the file, or zeros */
+typedef struct {
+    uint64_t sector, count;         /* the disk's */
+    uint64_t file;                  /* where (DMG_ZEROS: none, zeros) */
+} dmg_run_t;
+
+#define DMG_ZEROS       UINT64_MAX
+
 typedef struct {
     FILE *file;
     char path[192];
     uint64_t data_offset;           /* Disk Copy 4.2 header, partition */
+    dmg_run_t *runs;                /* a .dmg's, by sector (NULL: the disk in one piece) */
+    int run_count;
     uint64_t size;
     bool read_only;
     bool posted;                    /* the Mac was told about it */
@@ -222,6 +233,43 @@ static uint32_t s_driver;           /* driver's Mac address */
 static uint32_t s_rom_mac_base;     /* the ROM's 24-bit address (until Open) */
 static int s_light = -1;
 static uint8_t s_io[4096];
+
+/* The disk's bytes at offset: the file's, or through a .dmg's runs */
+static bool image_read(drive_t *d, uint64_t offset, uint8_t *buf, uint32_t len)
+{
+    if (d->runs == NULL) {
+        return fseeko(d->file, (off_t)offset, SEEK_SET) == 0 && fread(buf, 1, len, d->file) == len;
+    }
+    while (len > 0) {
+        uint64_t sector = offset / 512;
+        int lo = 0, hi = d->run_count - 1, r = -1;
+        while (lo <= hi) {
+            int mid = (lo + hi) / 2;
+            if (d->runs[mid].sector <= sector) {
+                r = mid;
+                lo = mid + 1;
+            } else {
+                hi = mid - 1;
+            }
+        }
+        if (r < 0 || sector >= d->runs[r].sector + d->runs[r].count) {
+            return false;
+        }
+        const dmg_run_t *run = &d->runs[r];
+        uint64_t left = (run->sector + run->count) * 512 - offset;
+        uint32_t n = left < len ? (uint32_t)left : len;
+        if (run->file == DMG_ZEROS) {
+            memset(buf, 0, n);
+        } else if (fseeko(d->file, (off_t)(run->file + offset - run->sector * 512), SEEK_SET) != 0 ||
+                   fread(buf, 1, n, d->file) != n) {
+            return false;
+        }
+        buf += n;
+        offset += n;
+        len -= n;
+    }
+    return true;
+}
 
 bool sony_install(uint8_t *rom, uint32_t rom_size, uint32_t offset, uint32_t rom_mac_base)
 {
@@ -492,7 +540,7 @@ static int fn_prime(void)
         return failed("prime", pb, (int)write, wPrErr);
     }
     accessed(i);
-    if (fseeko(d->file, (off_t)(d->data_offset + position), SEEK_SET) != 0) {
+    if (write && fseeko(d->file, (off_t)(d->data_offset + position), SEEK_SET) != 0) {
         return failed("prime", pb, (int)write, ioErr);
     }
     for (uint32_t done = 0; done < count;) {
@@ -503,7 +551,7 @@ static int fn_prime(void)
                 return failed("prime", pb, (int)write, ioErr);
             }
         } else {
-            if (fread(s_io, 1, n, d->file) != n) {
+            if (!image_read(d, d->data_offset + position + done, s_io, n)) {
                 return failed("prime", pb, (int)write, ioErr);
             }
             mac_ram_write(buffer + done, s_io, n);
@@ -532,6 +580,9 @@ static void close_drive(int i)
         fclose(d->file);
     }
     d->file = NULL;
+    free(d->runs);
+    d->runs = NULL;
+    d->run_count = 0;
     d->path[0] = 0;
     d->posted = false;
     d->size = 0;
@@ -677,8 +728,7 @@ int sony_native(uint16_t function)
 static bool space_read(void *ctx, uint64_t offset, void *buf, uint32_t len)
 {
     drive_t *d = ctx;
-    return offset + len <= d->size && fseeko(d->file, (off_t)(d->data_offset + offset), SEEK_SET) == 0 &&
-           fread(buf, 1, len, d->file) == len;
+    return offset + len <= d->size && image_read(d, d->data_offset + offset, buf, len);
 }
 
 static void space_update(drive_t *d)
@@ -690,6 +740,12 @@ static void space_update(drive_t *d)
     d->space_free = s.free;
     d->space_size = s.size;
     d->space_known = known;
+}
+
+bool mac_disk_read(int drive, uint64_t offset, void *buf, uint32_t len)
+{
+    drive_t *d = drive >= 0 && drive < MAC_DRIVES ? &s_drives[drive] : NULL;
+    return d && d->file && offset + len <= d->size && image_read(d, d->data_offset + offset, buf, len);
 }
 
 bool mac_disk_space(int drive, uint64_t *free_bytes, uint64_t *size)
@@ -728,6 +784,114 @@ static uint32_t be32(const uint8_t *p)
     return ((uint32_t)p[0] << 24) | (p[1] << 16) | (p[2] << 8) | p[3];
 }
 
+static uint64_t be64(const uint8_t *p)
+{
+    return (uint64_t)be32(p) << 32 | be32(p + 4);
+}
+
+/* Base64 between s and end (whitespace and '=' skipped) into out; its length */
+static size_t base64_decode(const char *s, const char *end, uint8_t *out)
+{
+    static const char digits[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    size_t n = 0;
+    uint32_t acc = 0;
+    int bits = 0;
+    for (; s < end; s++) {
+        const char *v = *s ? strchr(digits, *s) : NULL;
+        if (v == NULL) {
+            continue;
+        }
+        acc = acc << 6 | (uint32_t)(v - digits);
+        bits += 6;
+        if (bits >= 8) {
+            bits -= 8;
+            out[n++] = (uint8_t)(acc >> bits);
+        }
+    }
+    return n;
+}
+
+static int run_order(const void *a, const void *b)
+{
+    uint64_t x = ((const dmg_run_t *)a)->sector, y = ((const dmg_run_t *)b)->sector;
+    return x < y ? -1 : x > y;
+}
+
+/* A .dmg's chunk tables: the XML plist's "blkx" entries, each a base64
+ * "mish" block (its first sector at 8, data offset at $18, chunks from $CC:
+ * type, sector, count, offset, length; types 1 raw, 0 and 2 zeros,
+ * $7FFFFFFE a comment, $FFFFFFFF the end, $8000000x compressed). The disk:
+ * the runs they make. False if there's none, or a chunk is compressed
+ * (*compressed).
+ */
+static bool dmg_runs(drive_t *d, const uint8_t *koly, uint64_t file_size, bool *compressed)
+{
+    uint64_t data_at = be64(koly + 0x18), xml_at = be64(koly + 0xD8), xml_len = be64(koly + 0xE0);
+    if (xml_len == 0 || xml_len > 16 * 1024 * 1024 || xml_at > file_size - 512 || xml_len > file_size - 512 - xml_at) {
+        return false;
+    }
+    char *xml = malloc(xml_len + 1);
+    uint8_t *mish = malloc(xml_len);            /* (shorter than its text) */
+    dmg_run_t *runs = NULL;
+    int n_runs = 0, cap = 0;
+    uint64_t sectors = 0;
+    bool ok = xml && mish && fseeko(d->file, (off_t)xml_at, SEEK_SET) == 0 && fread(xml, 1, xml_len, d->file) == xml_len;
+    const char *p = NULL, *end = NULL;
+    if (ok) {
+        xml[xml_len] = 0;
+        p = strstr(xml, "<key>blkx</key>");
+        end = p ? strstr(p, "</array>") : NULL;
+        ok = end != NULL;
+    }
+    while (ok && (p = strstr(p, "<data>")) != NULL && p < end) {
+        const char *q = strstr(p += 6, "</data>");
+        size_t n = q && q < end ? base64_decode(p, q, mish) : 0;
+        if (n < 0xCC || memcmp(mish, "mish", 4) != 0 || 0xCCull + be32(mish + 0xC8) * 40ull > n) {
+            ok = false;
+            break;
+        }
+        uint64_t first = be64(mish + 8), base = data_at + be64(mish + 0x18);
+        for (uint32_t c = 0; c < be32(mish + 0xC8) && ok; c++) {
+            const uint8_t *e = mish + 0xCC + c * 40;
+            uint32_t type = be32(e);
+            uint64_t sector = first + be64(e + 8), count = be64(e + 16), at = base + be64(e + 24);
+            if (type == 0x7FFFFFFE || type == 0xFFFFFFFF || count == 0) {
+                continue;
+            }
+            if (type & 0x80000000u) {
+                *compressed = true;
+            }
+            if ((type != 0 && type != 1 && type != 2) || (type == 1 && be64(e + 32) != count * 512)) {
+                ok = false;
+                break;
+            }
+            if (n_runs == cap) {
+                cap = cap ? cap * 2 : 64;
+                dmg_run_t *grown = realloc(runs, cap * sizeof(dmg_run_t));
+                if (grown == NULL) {
+                    ok = false;
+                    break;
+                }
+                runs = grown;
+            }
+            runs[n_runs++] = (dmg_run_t){ sector, count, type == 1 ? at : DMG_ZEROS };
+            sectors = sector + count > sectors ? sector + count : sectors;
+        }
+        p = q;
+    }
+    free(xml);
+    free(mish);
+    if (!ok || n_runs == 0) {
+        free(runs);
+        return false;
+    }
+    qsort(runs, n_runs, sizeof(dmg_run_t), run_order);
+    d->runs = runs;
+    d->run_count = n_runs;
+    d->size = sectors * 512;
+    return true;
+}
+
 bool mac_disk_insert(int drive, const char *path)
 {
     if (drive < 0 || drive >= MAC_DRIVES) {
@@ -759,6 +923,7 @@ bool mac_disk_insert(int drive, const char *path)
         fclose(f);
         return false;
     }
+    d->file = f;                    /* (image_read() from here; closed again if it isn't a disk) */
     uint64_t file_size = st.st_size;
     d->data_offset = 0;
     d->size = file_size & ~511ull;
@@ -772,32 +937,38 @@ bool mac_disk_insert(int drive, const char *path)
             d->size = data;
         }
     }
-    /* Disk images from a Mac (.dmg, UDIF): read-only or read-write ones
-     * that aren't compressed have the disk as their data fork, and a
-     * 512-byte "koly" block at the end says where
+    /* Disk images from a Mac (.dmg, UDIF): a 512-byte "koly" block at the
+     * end. The disk is its data fork's chunks as its tables list them (a
+     * read-only image leaves out the runs of zeros), or without tables the
+     * data fork in one piece. Compressed ones aren't taken.
      */
     uint64_t base = 0;
     bool dmg = false;
     uint8_t k[512];
     if (d->data_offset == 0 && file_size >= 1024 && fseeko(f, (off_t)(file_size - 512), SEEK_SET) == 0 &&
         fread(k, 1, sizeof(k), f) == sizeof(k) && memcmp(k, "koly", 4) == 0) {
-        uint64_t offset = (uint64_t)be32(k + 0x18) << 32 | be32(k + 0x1C);
-        uint64_t length = (uint64_t)be32(k + 0x20) << 32 | be32(k + 0x24);
-        uint8_t v[2] = { 0, 0 };
-        bool raw = offset + length <= file_size - 512 && length >= 1024 &&
-                   ((fseeko(f, (off_t)(offset + 1024), SEEK_SET) == 0 && fread(v, 1, 2, f) == 2 &&
-                     ((v[0] == 'B' && v[1] == 'D') || (v[0] == 'H' && v[1] == '+'))) ||
-                    (fseeko(f, (off_t)offset, SEEK_SET) == 0 && fread(v, 1, 2, f) == 2 && v[0] == 'E' && v[1] == 'R'));
-        if (!raw) {
-            MAC_LOGW("%s: a compressed .dmg (convert it to a read-only or read-write image)", path);
-            fclose(f);
-            return false;
+        bool compressed = false;
+        if (!dmg_runs(d, k, file_size, &compressed)) {
+            uint64_t offset = be64(k + 0x18), length = be64(k + 0x20);
+            if (compressed || offset + length > file_size - 512 || length < 1024) {
+                MAC_LOGW("%s: a compressed .dmg (convert it: hdiutil convert -format UDRO)", path);
+                close_drive(drive);
+                return false;
+            }
+            base = d->data_offset = offset;
+            d->size = length & ~511ull;
         }
-        base = d->data_offset = offset;
         dmg = true;
-        d->size = length & ~511ull;
-        if (fseeko(f, (off_t)offset, SEEK_SET) != 0 || fread(h, 1, sizeof(h), f) != sizeof(h)) {
+        uint8_t v[2] = { 0, 0 };
+        if (!image_read(d, base, h, sizeof(h))) {
             memset(h, 0, sizeof(h));
+        }
+        bool disk = (h[0] == 'E' && h[1] == 'R') ||
+                    (image_read(d, base + 1024, v, 2) && ((v[0] == 'B' && v[1] == 'D') || (v[0] == 'H' && v[1] == '+')));
+        if (!disk) {
+            MAC_LOGW("%s: no HFS volume or Apple partition map in the .dmg", path);
+            close_drive(drive);
+            return false;
         }
     }
     /* Apple partition map (hard disk and CD images): the first Apple_HFS
@@ -807,22 +978,21 @@ bool mac_disk_insert(int drive, const char *path)
         uint8_t pm[512];
         int entries = 1;
         for (int i = 1; i <= entries && i < 64; i++) {
-            if (fseeko(f, (off_t)(base + i * 512), SEEK_SET) != 0 || fread(pm, 1, sizeof(pm), f) != sizeof(pm) ||
-                pm[0] != 'P' || pm[1] != 'M') {
+            if (!image_read(d, base + i * 512, pm, sizeof(pm)) || pm[0] != 'P' || pm[1] != 'M') {
                 break;
             }
             entries = be32(pm + 4);
             uint64_t start = base + (uint64_t)be32(pm + 8) * 512, blocks = be32(pm + 12);
-            if (strncasecmp((const char *)pm + 48, "Apple_HFS", 32) == 0 && start < file_size) {
+            uint64_t disk_size = d->runs ? d->size : file_size;
+            if (strncasecmp((const char *)pm + 48, "Apple_HFS", 32) == 0 && start < disk_size) {
                 d->data_offset = start;
-                d->size = blocks * 512 < file_size - start ? blocks * 512 : (file_size - start) & ~511ull;
+                d->size = blocks * 512 < disk_size - start ? blocks * 512 : (disk_size - start) & ~511ull;
                 MAC_LOGI("drive %d: partition %.32s at block %lu", drive + 1, (const char *)pm + 16,
                          (unsigned long)(start / 512));
                 break;
             }
         }
     }
-    d->file = f;
     d->read_only = read_only;
     d->posted = false;
     d->space_known = false;
