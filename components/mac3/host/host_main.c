@@ -503,6 +503,11 @@ int main(int argc, char **argv)
             if (mac_disk_path(d)) {
                 printf("drive %d: %u blocks read, %u written\n", d + 1, ds.reads[d], ds.writes[d]);
             }
+            uint64_t free_bytes, size;
+            if (mac_disk_space(d, &free_bytes, &size)) {
+                printf("drive %d: %llu bytes free of %llu\n", d + 1, (unsigned long long)free_bytes,
+                       (unsigned long long)size);
+            }
         }
     }
     if (out) {

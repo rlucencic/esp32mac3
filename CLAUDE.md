@@ -218,9 +218,18 @@ $40800000 (ROMBase), in 24-bit mode at $800000.
   both sizes and on the LC II at 512x384.
 - Checked on the Tab5 (2026-10-18): the setup screen's two-line Monitor
   buttons for the LC II and the LC III (`docs/images/tab5-setup.png`).
+- **Free disk space** (web page): each drive's HFS/MFS/HFS+ volume
+  (`mac_disk_space()`, esp32emu's `diskspace`), counted in `sony_frame()`
+  at insert and a second after the last write. Tab5 (2026-10-21):
+  a 256 MB Mac OS 7.6.1 disk 114118656 of 255987712. A read-only `.dmg` (UDRO) shows
+  none: its data fork holds only the non-zero chunks (open item).
 
 ## Open items
 
+- A read-only `.dmg` (UDRO, `hdiutil convert -format UDRO`) is taken as
+  an uncompressed one, but its data fork leaves out the runs of zeros (a
+  10 MB volume in 1 MB): the Mac gets a short, wrong disk. Refuse it, or
+  expand it like the compressed kinds (found 2026-10-21).
 - The CPU's speed on the board: a faster interpreter (a direct opcode fetch
   from RAM/ROM pages, say) would help the LC III most.
 - The LC II's BoxFlag (an LC's, see the lessons).
@@ -229,7 +238,6 @@ $40800000 (ROMBase), in 24-bit mode at $800000.
   PDS cards; MMU faults don't raise exceptions (no virtual memory).
 - `cpu_scale_native` is a guess for both; a Speedometer run against real
   figures would settle it.
-
 ## Working with the user
 
 - Expects changes built, flashed and checked on the board, then a short

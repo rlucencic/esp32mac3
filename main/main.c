@@ -470,8 +470,10 @@ static void status(emu_json_t *j, int section)
     for (int d = 0; d < MAC_DRIVES; d++) {
         const char *name = disks_name(d);
         size_text(text, sizeof(text), mac_disk_size(d));
-        emu_json_drive(j, drive_names[d], name, mac_disk_write_protected(d), ds.light == d,
-                       ds.reads[d], ds.writes[d], name ? text : NULL);
+        uint64_t free_bytes = 0, size = 0;
+        mac_disk_space(d, &free_bytes, &size);
+        emu_json_drive_space(j, drive_names[d], name, mac_disk_write_protected(d), ds.light == d,
+                             ds.reads[d], ds.writes[d], name ? text : NULL, free_bytes, size);
     }
 }
 

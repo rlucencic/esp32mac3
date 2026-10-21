@@ -22,6 +22,7 @@
 #include <strings.h>
 #include <sys/stat.h>
 #include "m68k.h"
+#include "diskspace.h"
 #include "mac_internal.h"
 
 enum {
@@ -196,6 +197,11 @@ typedef struct {
     uint32_t posted_frame;          /* when the disk-inserted event went out */
     uint32_t reads_at_post;
     int posts;
+    uint32_t last_write;            /* frame */
+    bool space_due;                 /* free space: to be worked out */
+    uint32_t space_writes;          /* the write count it was worked out at */
+    volatile bool space_known;
+    volatile uint64_t space_free, space_size;
 } drive_t;
 
 static drive_t s_drives[MAC_DRIVES];
@@ -507,6 +513,7 @@ static int fn_prime(void)
     if (write) {
         fflush(d->file);
         d->writes += count / 512;
+        d->last_write = mac.frames;
     } else {
         d->reads += count / 512;
         for (int k = 0; k < 12; k += 2) {
@@ -528,6 +535,7 @@ static void close_drive(int i)
     d->path[0] = 0;
     d->posted = false;
     d->size = 0;
+    d->space_known = false;
     update_record(i);
 }
 
@@ -657,13 +665,57 @@ int sony_native(uint16_t function)
     }
 }
 
-/* Drive light: on for ~0.3 s after an access */
+/* ---- Free space, for the web page ----
+ *
+ * Worked out here on the emulation task, which owns the files: at insert
+ * and a second after the last write. The Mac writes its volume's counts
+ * back from time to time, so they may lag a little behind.
+ */
+
+#define SPACE_FRAMES    60
+
+static bool space_read(void *ctx, uint64_t offset, void *buf, uint32_t len)
+{
+    drive_t *d = ctx;
+    return offset + len <= d->size && fseeko(d->file, (off_t)(d->data_offset + offset), SEEK_SET) == 0 &&
+           fread(buf, 1, len, d->file) == len;
+}
+
+static void space_update(drive_t *d)
+{
+    diskspace_disk_t disk = { space_read, d, d->size };
+    diskspace_t s = { 0, 0 };
+    bool known = diskspace_mac_disk(&disk, &s);
+    d->space_known = false;
+    d->space_free = s.free;
+    d->space_size = s.size;
+    d->space_known = known;
+}
+
+bool mac_disk_space(int drive, uint64_t *free_bytes, uint64_t *size)
+{
+    if (drive < 0 || drive >= MAC_DRIVES || !s_drives[drive].space_known) {
+        return false;
+    }
+    *free_bytes = s_drives[drive].space_free;
+    *size = s_drives[drive].space_size;
+    return true;
+}
+
+/* Drive light: on for ~0.3 s after an access; the free space */
 void sony_frame(void)
 {
     int light = -1;
     for (int i = 0; i < MAC_DRIVES; i++) {
-        if (s_drives[i].accessed && mac.frames - s_drives[i].last_access < 20) {
+        drive_t *d = &s_drives[i];
+        if (d->accessed && mac.frames - d->last_access < 20) {
             light = i;
+        }
+        if (d->file != NULL &&
+            (d->space_due || (d->writes != d->space_writes && mac.frames - d->last_write >= SPACE_FRAMES))) {
+            d->space_due = false;
+            d->space_writes = d->writes;
+            space_update(d);
         }
     }
     s_light = light;
@@ -773,6 +825,8 @@ bool mac_disk_insert(int drive, const char *path)
     d->file = f;
     d->read_only = read_only;
     d->posted = false;
+    d->space_known = false;
+    d->space_due = true;
     snprintf(d->path, sizeof(d->path), "%s", path);
     MAC_LOGI("drive %d: %s, %llu KB%s%s%s", drive + 1, path, (unsigned long long)(d->size / 1024),
              d->data_offset == 84 ? ", Disk Copy 4.2" : "", dmg ? ", .dmg" : "", read_only ? ", locked" : "");
