@@ -11,7 +11,7 @@ Colour Macs with a 68030 and its MMU, chosen on the setup screen:
   stereo ASC; 4, 8, 16 or 20 MB.
 
 Both run Mac OS 7.6.1 (it needs 32-bit addressing, which they have).
-Bluetooth keyboard and mouse, the touch screen as a mouse, disk images of
+Bluetooth keyboard and mouse, the touch screen as a touchpad, disk images of
 any size in three drives, an LVGL setup screen and a web page. ESP-IDF
 v5.5.4, C.
 
@@ -72,7 +72,7 @@ each monitor gets: LC II up to 256 at 640x480, 32,768 at 512x384; LC III
 
 | Path | What |
 |---|---|
-| `main/main.c` | The Mac as an `emu_machine_t`: memory, start, the CPU speed controller, key map, touch, drives, status, console |
+| `main/main.c` | The Mac as an `emu_machine_t`: memory, start, the CPU speed controller, key map, mouse and touchpad (a count a pixel), drives, status, console |
 | `main/rom_store.c` | ROMs from their flash partitions, else matching files in the SD card's `roms/` |
 | `main/settings.c` | NVS `mac3` |
 | `main/web/macfiles.js` | From `../esp32mac` (LGPL): Mac archives -> HFS disk images in the browser |
@@ -239,6 +239,12 @@ $40800000 (ROMBase), in 24-bit mode at $800000.
   PDS cards; MMU faults don't raise exceptions (no virtual memory).
 - `cpu_scale_native` is a guess for both; a Speedometer run against real
   figures would settle it.
+- **Clock** (the clock audit, 2026-10-21: `../esp32emu/CLAUDE.md`, To do):
+  Egret's clock is the board's time plus an offset the Mac sets (not saved):
+  a clock set before the board's time is right is shifted by its next step.
+  The Mac reads it at boot and then counts its one-second interrupt in
+  emulated time: it misses a later step and falls behind below real time.
+
 ## Working with the user
 
 - Expects changes built, flashed and checked on the board, then a short

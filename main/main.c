@@ -287,16 +287,13 @@ static void hid_key(uint8_t usage, bool pressed)
     }
 }
 
+/* A Bluetooth mouse, and the touch screen as a touchpad (the runtime's:
+ * its moves come in the Mac's pixels, a count each)
+ */
 static void hid_mouse(int dx, int dy, uint8_t buttons)
 {
-    /* The Mac has one button: any of them */
+    /* The Mac has one button: any of them (the touchpad's long press holds it) */
     mac_mouse(dx, dy, buttons != 0);
-}
-
-/* A finger on the picture is the pointer: down there clicks */
-static void touch(int x, int y, bool pressed)
-{
-    mac_mouse_position(x, y, pressed);
 }
 
 /* ---- Setup screen choices ---- */
@@ -577,7 +574,7 @@ static const emu_machine_t machine = {
     .audio_pending = mac_audio_pending,
     .hid_key = hid_key,
     .hid_mouse = hid_mouse,
-    .touch = touch,
+    .touchpad = hid_mouse,
     .choices = choices,
     .choice_count = CHOICES,
     .choice_names = choice_names,

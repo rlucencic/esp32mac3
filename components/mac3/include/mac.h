@@ -194,5 +194,5 @@ void mac_key(uint8_t keycode, bool down);
 /* Relative mouse motion (pixels) and the button */
 void mac_mouse(int dx, int dy, bool button);
 
-/* Put the pointer at screen position (x, y), e.g. from a touch screen */
+/* Put the pointer at screen position (x, y) (the console, host scripts) */
 void mac_mouse_position(int x, int y, bool button);

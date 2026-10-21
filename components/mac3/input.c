@@ -2,10 +2,11 @@
  * Keyboard and mouse input from other tasks (Bluetooth, touch, console).
  *
  * Events go through a small queue; the emulation drains it once a frame.
- * Keys wait in a second queue for the ADB keyboard. Relative motion goes
- * through the ADB mouse (so the Mac's own acceleration applies); absolute
- * positions (touch) through the low memory cursor globals, as Mini vMac
- * does. (From ../esp32mac.)
+ * Keys wait in a second queue for the ADB keyboard. Relative motion (the
+ * mouse, touch as a touchpad) goes through the ADB mouse (so the Mac's own
+ * acceleration applies); absolute positions (the console, host scripts)
+ * through the low memory cursor globals, as Mini vMac does. (From
+ * ../esp32mac.)
  */
 #include <string.h>
 #include "mac_internal.h"
