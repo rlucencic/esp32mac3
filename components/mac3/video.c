@@ -256,16 +256,18 @@ void video_render_line(int y, uint16_t *dst)
         }
         break;
     case 3:
-        for (int x = 0; x < w; x++) {
-            *dst++ = pens[vram[(line + x) ^ 1]];
+        /* Native VRAM words hold the first guest pixel in their high byte. */
+        for (int x = 0; x < w; x += 2) {
+            uint16_t p = *(const uint16_t *)(vram + line + x);
+            *dst++ = pens[p >> 8];
+            *dst++ = pens[p & 0xFF];
         }
         break;
     default:
         /* 16 bits: x RRRRR GGGGG BBBBB, not through the colour table */
         for (int x = 0; x < w; x++) {
             uint16_t p = *(const uint16_t *)(vram + line + x * 2);
-            uint16_t g = (p >> 5) & 0x1F;
-            *dst++ = ((p >> 10) & 0x1F) << 11 | g << 6 | (g >> 4) << 5 | (p & 0x1F);
+            *dst++ = ((p & 0x7FE0) << 1) | ((p & 0x0200) >> 4) | (p & 0x001F);
         }
         break;
     }

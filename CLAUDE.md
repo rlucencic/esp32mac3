@@ -229,6 +229,20 @@ $40800000 (ROMBase), in 24-bit mode at $800000.
   refused ("a compressed .dmg: hdiutil convert -format UDRO"). A UDRO
   used to be taken as its data fork, the zeros left out: a wrong disk.
 
+- **Video conversion trial** (Tab5, 2026-11-07): paired native-word reads
+  at 8 bits and masked RGB555 conversion retain the original V8/Sonora
+  strides, whole-row bounds checks and blanking. All 1,246,912 ASan/UBSan
+  row comparisons per candidate, four host ROM-boot pixel comparisons,
+  four full LCD-buffer comparisons and P4 test/production builds pass.
+  Isolated costs fall 23–29% at 8 bits and about 19% at RGB555, for ten
+  added text bytes and no table/allocation. Full-firmware signature rates
+  rise 9.35% (LC II indexed) and 7.67% (LC III RGB555), while separate
+  adaptive CPU-speed windows show means 0.58% and 1.77% lower. These are
+  graphics tradeoffs, not panel-FPS or general application gains. Tests
+  use injected code with the MMU disabled and no guest disks; OS workflows
+  and CPU/MMU performance remain separate. Details:
+  `docs/video-optimization-experiment-2026-11-07.md`.
+
 ## Open items
 
 - The CPU's speed on the board: a faster interpreter (a direct opcode fetch
