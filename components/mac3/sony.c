@@ -623,8 +623,10 @@ static int fn_control(void)
             return failed("control", pb, code, offLinErr);
         }
         return d->read_only ? failed("control", pb, code, wPrErr) : set_result(noErr);
-    case 7:     /* eject */
-        if (d->file != NULL) {
+    case 7:     /* eject: a fixed disk stays (Shut Down ejects every drive's
+                 * disk, and a hard disk's driver ignores it); the setup
+                 * screen's Eject takes it out */
+        if (d->file != NULL && !fixed_disk(d)) {
             MAC_LOGI("drive %d: ejected %s", i + 1, d->path);
             close_drive(i);
             if (mac.disk_ejected) {
