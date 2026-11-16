@@ -13,7 +13,7 @@ Colour Macs with a 68030 and its MMU, chosen on the setup screen:
 Both run Mac OS 7.6.1 (it needs 32-bit addressing, which they have).
 Bluetooth keyboard and mouse, the touch screen as a touchpad, disk images of
 any size in three drives, an LVGL setup screen and a web page. ESP-IDF
-v5.5.4, C.
+v5.5.6, C.
 
 The sibling of `../esp32mac2` (LC and II: a 68020, System 7.5.5), whose
 core this one started as a copy of, and of `../esp32mac` (Plus, SE,
@@ -33,7 +33,7 @@ Tab5's settings from `../esp32emu` go on top.
 
 ```sh
 bash -c '. $IDF_PATH/export.sh >/dev/null 2>&1; \
-  export IDF_PYTHON_ENV_PATH=/Users/robertlucencic/.espressif/tools/python/v5.5.4/venv; \
+  export IDF_PYTHON_ENV_PATH=/Users/robertlucencic/.espressif/tools/python/v5.5.6/venv; \
   export PATH=$IDF_PYTHON_ENV_PATH/bin:$PATH; \
   idf.py -B build-tab5 -DIDF_TARGET=esp32p4 -DSDKCONFIG=$PWD/build-tab5/sdkconfig build && \
   idf.py -B build-tab5 -DIDF_TARGET=esp32p4 -DSDKCONFIG=$PWD/build-tab5/sdkconfig -p /dev/cu.usbmodem3101 flash'

@@ -150,7 +150,7 @@ projects, isn't supported: its ESP32-S3 is far too slow for a 68030.
 
 ### 1. What you need
 
-- [ESP-IDF](https://github.com/espressif/esp-idf) v5.5 (developed with v5.5.4)
+- [ESP-IDF](https://github.com/espressif/esp-idf) v5.5 (developed with v5.5.6)
 - [esp32emu](https://github.com/rlucencic/esp32emu), checked out next to this project (`../esp32emu`)
 - Macintosh ROM images, which are copyrighted and **not included**: dumps of
   your own LC II ROM (512 KB) as `roms/lc2.rom` and LC III ROM (1 MB, also
