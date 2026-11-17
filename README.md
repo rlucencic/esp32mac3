@@ -172,8 +172,8 @@ idf.py -B build-tab5 -DIDF_TARGET=esp32p4 -DSDKCONFIG=build-tab5/sdkconfig -p /d
 ```
 
 Later updates only need `app-flash` instead of `flash`. Instead of flashing
-the ROMs, you can also copy them into a `roms` folder on the SD card. The
-Tab5 is the only target: a build for any other stops with a message.
+the ROMs, you can also copy them into the `mac/roms` folder on the SD card.
+The Tab5 is the only target: a build for any other stops with a message.
 
 ### 3. First start
 
@@ -182,7 +182,7 @@ Tab5 is the only target: a build for any other stops with a message.
    reachable.
 2. Open `http://macintosh3.local` and drop a Mac OS 7.6.1 disk image onto
    the page, then choose **Insert into… → Drive 1**. (A 256 MB image takes
-   about ten minutes to upload; you can also copy it into the `disks`
+   about ten minutes to upload; you can also copy it into the `mac`
    folder of the SD card.)
 3. Tap **Bluetooth** to pair a keyboard and mouse (optional: the touch
    screen is a touchpad too).
@@ -210,8 +210,11 @@ Tab5 is the only target: a build for any other stops with a message.
 | Use a program downloaded as `.sit`, `.cpt`, `.hqx` or `.bin` | Drop the file onto the web page: it becomes a disk image named after it |
 | …or from the command line | `curl -T MacOS.dsk http://macintosh3.local/disks/` |
 
-Disk images live in the `disks` folder on the SD card. The inserted disks
-are remembered across restarts, and so is each model's parameter RAM.
+Disk images live in the `mac` folder on the SD card, shared with esp32mac
+and esp32mac2 (until 2026-11-17 `disks`, and the ROMs in the card's `roms`:
+esp32emu's `tools/sd_folders.ps1 E:\` moves an older card's files into
+each machine's folder). The inserted disks are remembered across restarts,
+and so is each model's parameter RAM.
 
 **Keyboard**: by position, as on Apple's Extended Keyboard (US). Command is
 the Windows/⌘ key, Option is Alt, Control is Ctrl; Backspace is Delete,
@@ -244,7 +247,7 @@ flowchart LR
     BLE[Bluetooth HID · touchpad]
   end
   PSRAM[(PSRAM<br>Mac RAM · ROM · VRAM · picture)]
-  SD[(microSD<br>disks/)]
+  SD[(microSD<br>mac/)]
   EMU <--> PSRAM
   PSRAM --> PRES
   PRES --> LCD[1280×720 panel]

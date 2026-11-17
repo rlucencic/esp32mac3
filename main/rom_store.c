@@ -8,7 +8,7 @@
 #include "rom_store.h"
 
 #define ROM_PARTITION_TYPE  0x40
-#define ROM_FOLDER          SDCARD_MOUNT_POINT "/roms"
+#define ROM_FOLDER          SDCARD_MOUNT_POINT "/mac/roms"
 
 static const char *TAG = "rom";
 

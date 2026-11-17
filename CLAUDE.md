@@ -45,7 +45,9 @@ bash -c '. $IDF_PATH/export.sh >/dev/null 2>&1; \
   after another one, a full `flash` (partition table and ROMs). NVS (WiFi,
   BLE pairings) is shared; this project's settings are namespace `mac3`
   (`model`, `ram_mb`, `monitor`, `pram_lc2`, `pram_lc3`), its drives
-  `mac3disks`.
+  `mac3disks`. On the SD card: `mac/` (the three Macs' disk images;
+  `disks/` until 2026-11-17), `mac/roms/` (the card's `roms/` then):
+  esp32emu's `tools/sd_folders.ps1` moves an old card's files.
 - `CONFIG_M68K_68030=y` (`sdkconfig.defaults`) makes `../esp32emu`'s
   Musashi a 68030 with its MMU (the `M68K_CPU` choice; `-DM68K_68030` in the
   host build). Its FPU is always there (both Macs take a 68882 in a slot).
@@ -73,7 +75,7 @@ each monitor gets: LC II up to 256 at 640x480, 32,768 at 512x384; LC III
 | Path | What |
 |---|---|
 | `main/main.c` | The Mac as an `emu_machine_t`: memory, start, the CPU speed controller, key map, mouse and touchpad (a count a pixel), drives, status, console |
-| `main/rom_store.c` | ROMs from their flash partitions, else matching files in the SD card's `roms/` |
+| `main/rom_store.c` | ROMs from their flash partitions, else matching files in the SD card's `mac/roms/` |
 | `main/settings.c` | NVS `mac3` |
 | `main/web/macfiles.js` | From `../esp32mac` (LGPL): Mac archives -> HFS disk images in the browser |
 | `components/mac3/` | The Macs, platform independent (`include/mac.h`) |
