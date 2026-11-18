@@ -11,5 +11,5 @@ files work:
 
 `idf.py flash` writes them to the `rom_lc2` and `rom_lc3` flash partitions.
 
-Without flashing, the emulator also finds them in the `mac/roms` folder on
-the SD card, under any file name.
+A ROM in the `mac/roms` folder on the SD card, under any file name, is used
+instead of the flashed one of its model (by its checksum).

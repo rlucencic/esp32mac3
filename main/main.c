@@ -121,9 +121,9 @@ static bool start(void)
     bool lc3 = settings.model == MAC_MODEL_LC3;
     if (s_cfg.rom_copy == NULL || !rom_store_load(settings.model, s_cfg.rom_copy, &rom_size, &s_rom_name)) {
         emu_set_message(lc3 ? "No Macintosh LC III ROM (1 MB): put it in roms/lc3.rom and flash with idf.py "
-                              "flash, or copy it into the \"mac/roms\" folder on the SD card."
+                              "flash."
                             : "No Macintosh LC II ROM (512 KB): put it in roms/lc2.rom and flash with idf.py "
-                              "flash, or copy it into the \"mac/roms\" folder on the SD card.");
+                              "flash.");
         return false;
     }
     if (s_pram_dirty) {

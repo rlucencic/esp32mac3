@@ -79,7 +79,8 @@ bool rom_store_load(mac_model_t model, uint8_t *buf, uint32_t *size, const char 
     if (model > MAC_MODEL_LC3) {
         return false;
     }
-    if (!from_partition(model, buf, size) && !from_sd(model, buf, size)) {
+    /* the card's overrides the built-in one */
+    if (!from_sd(model, buf, size) && !from_partition(model, buf, size)) {
         return false;
     }
     *name = mac_rom_identify(buf, *size, NULL);
