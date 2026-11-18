@@ -13,3 +13,5 @@
  * in *name.
  */
 bool rom_store_load(mac_model_t model, uint8_t *buf, uint32_t *size, const char **name);
+/* Where the last one loaded came from: "the flash", "the SD card" (NULL: none yet) */
+const char *rom_store_source(void);

@@ -241,6 +241,14 @@ void asc_write(uint32_t address, uint8_t value)
     schedule();
 }
 
+void asc_status(uint8_t *version, uint16_t fifo[2], bool *record)
+{
+    *version = asc.sonora ? 0xBC : 0xE8;
+    fifo[0] = asc.count[0];
+    fifo[1] = asc.sonora ? asc.count[1] : 0;
+    *record = asc.regs[R_PLAYREC] & 1;
+}
+
 /* ---- Output ---- */
 
 #define RING        4096            /* stereo frames, power of two */

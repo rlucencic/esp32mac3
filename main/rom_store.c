@@ -11,6 +11,7 @@
 #define ROM_FOLDER          SDCARD_MOUNT_POINT "/mac/roms"
 
 static const char *TAG = "rom";
+static const char *s_source;         /* where the last ROM came from */
 
 static const char *const partitions[] = { "rom_lc2", "rom_lc3" };
 static const uint32_t sizes[] = { 512 * 1024, 1024 * 1024 };
@@ -80,9 +81,18 @@ bool rom_store_load(mac_model_t model, uint8_t *buf, uint32_t *size, const char 
         return false;
     }
     /* the card's overrides the built-in one */
-    if (!from_sd(model, buf, size) && !from_partition(model, buf, size)) {
+    if (from_sd(model, buf, size)) {
+        s_source = "the SD card";
+    } else if (from_partition(model, buf, size)) {
+        s_source = "the flash";
+    } else {
         return false;
     }
     *name = mac_rom_identify(buf, *size, NULL);
     return true;
+}
+
+const char *rom_store_source(void)
+{
+    return s_source;
 }

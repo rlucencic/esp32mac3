@@ -437,29 +437,170 @@ static const char *depth_text(int bits)
     }
 }
 
+/* Bytes as base64 (n a multiple of 3), NUL-terminated: its length */
+static size_t base64(char *out, const uint8_t *in, size_t n)
+{
+    static const char digits[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    size_t o = 0;
+    for (size_t i = 0; i + 2 < n; i += 3) {
+        uint32_t v = (uint32_t)in[i] << 16 | (uint32_t)in[i + 1] << 8 | in[i + 2];
+        out[o++] = digits[(v >> 18) & 63];
+        out[o++] = digits[(v >> 12) & 63];
+        out[o++] = digits[(v >> 6) & 63];
+        out[o++] = digits[v & 63];
+    }
+    out[o] = '\0';
+    return o;
+}
+
+/* The colour table's entries in use: 1 bit $7F and $FF, 2 bits $3F, $7F,
+ * $BF, $FF, 4 bits $0F ... $FF as swatches; 8 bits every 8th entry as a
+ * 32 x 1 BMP (256 swatches would take ~9 KB; the whole reply has 4 KB,
+ * esp32emu's STATUS_SIZE); 16 bits: no table
+ */
+static void palette_row(emu_json_t *j, const mac_chips_t *c)
+{
+    static char text[720];
+    size_t n;
+    if (c->depth > 8) {
+        emu_json_row(j, "Palette", "Direct colour (5 bits each of red, green and blue): no colour table");
+        return;
+    }
+    if (c->depth == 8) {
+        uint8_t bmp[54 + 32 * 3] = {
+            'B', 'M', sizeof(bmp), 0, 0, 0, 0, 0, 0, 0, 54, 0, 0, 0,      /* the file: its size, the pixels' offset */
+            40, 0, 0, 0, 32, 0, 0, 0, 1, 0, 0, 0, 1, 0, 24, 0,              /* 32 x 1, 24 bits a pixel */
+        };
+        for (int i = 0; i < 32; i++) {
+            const uint8_t *e = c->clut[i * 8];
+            bmp[54 + 3 * i] = e[2];                                         /* B, G, R */
+            bmp[55 + 3 * i] = e[1];
+            bmp[56 + 3 * i] = e[0];
+        }
+        n = (size_t)snprintf(text, sizeof(text), "256 of 16.7 million colours; entries 0, 8 ... 248:<img style="
+                             "width:100%%;height:1.2em;image-rendering:pixelated src=data:image/bmp;base64,");
+        n += base64(text + n, bmp, sizeof(bmp));        /* (no '=': unquoted) */
+        snprintf(text + n, sizeof(text) - n, ">");
+        emu_json_row(j, "Palette", text);
+        return;
+    }
+    int count = 1 << c->depth, step = 256 / count;
+    n = (size_t)snprintf(text, sizeof(text), "%d of 16.7 million colours: ", count);
+    for (int i = 0; i < count && n < sizeof(text); i++) {
+        const uint8_t *e = c->clut[i * step + step - 1];
+        char css[8];
+        if (e[0] % 17 == 0 && e[1] % 17 == 0 && e[2] % 17 == 0) {
+            snprintf(css, sizeof(css), "%x%x%x", e[0] / 17u, e[1] / 17u, e[2] / 17u);    /* #rgb */
+        } else {
+            snprintf(css, sizeof(css), "%02x%02x%02x", e[0], e[1], e[2]);
+        }
+        n += (size_t)snprintf(text + n, sizeof(text) - n, "%s<b style=background:#%s>\u00a0\u00a0\u00a0</b>",
+                              i ? " " : "", css);
+    }
+    emu_json_row(j, "Palette", text);
+}
+
+/* The machine card's rows: the state now (the core's plain copies) */
+static void status_rows(emu_json_t *j)
+{
+    char text[320];
+    static mac_chips_t c;               /* (the colour table: off the web server's stack) */
+    mac_get_chips(&c);
+    bool lc3 = mac_model() == MAC_MODEL_LC3;
+    unsigned mb = (unsigned)(s_cfg.ram_size >> 20);
+    if (lc3) {
+        snprintf(text, sizeof(text), "Macintosh LC III: a 68030 at 25 MHz and a 68882, Sonora, %u MB RAM, Egret; "
+                 "the PDS slot empty", mb);
+    } else {
+        /* the board's 4 MB and a SIMM pair (10 MB: an 8 MB pair and 2 MB of the board's) */
+        char simms[48] = "";
+        if (mb > 4) {
+            snprintf(simms, sizeof(simms), " (a %u MB SIMM pair%s)", mb == 10 ? 8 : mb - 4,
+                     mb == 10 ? ", 2 MB of the board's" : "");
+        }
+        snprintf(text, sizeof(text), "Macintosh LC II: a 68030 at 15.67 MHz on a 16-bit bus and a 68882, the V8, "
+                 "%u MB RAM%s, Egret; the PDS slot empty", mb, simms);
+    }
+    emu_json_row(j, "System", text);
+    snprintf(text, sizeof(text), "68030 at %.1f MHz <span class=\"dim\">(%d%% of the %s's)</span>; %d-bit addressing",
+             mac_cpu_mhz(), mac_cpu_speed() * 100 / MAC_SPEED_NATIVE, lc3 ? "LC III" : "LC II", c.mode32 ? 32 : 24);
+    emu_json_row(j, "CPU", text);
+    snprintf(text, sizeof(text), "%s, %s from %s%s", s_rom_name ? s_rom_name : "-", lc3 ? "1 MB" : "512 KB",
+             rom_store_source() ? rom_store_source() : "-", c.overlay ? "; over RAM at 0 (the overlay)" : "");
+    emu_json_row(j, "ROM", text);
+    /* (the 32-bit map; the V8 itself decodes 24 bits: ROM $A00000, I/O $F00000, video RAM $F40000) */
+    snprintf(text, sizeof(text), "RAM $00000000-$%08lX, ROM $%08lX, I/O $50F00000, %s of video RAM at $%08lX",
+             (unsigned long)(s_cfg.ram_size - 1), lc3 ? 0x40800000ul : 0x40A00000ul, lc3 ? "1 MB" : "512 KB",
+             lc3 ? 0x60000000ul : 0x50F40000ul);
+    emu_json_row(j, "Memory", text);
+    uint32_t ram_free, system_free;
+    if (mac_ram_free(&ram_free, &system_free)) {
+        snprintf(text, sizeof(text), "%lu KB of %u MB <span class=\"dim\">(system heap %lu KB free)</span>",
+                 (unsigned long)(ram_free / 1024), mb, (unsigned long)(system_free / 1024));
+        emu_json_row_bar(j, "Free RAM", text, 100 - (int)((uint64_t)ram_free * 100 / s_cfg.ram_size));
+    }
+
+    int w, h;
+    mac_screen_size(&w, &h);
+    snprintf(text, sizeof(text), "%d × %d, %s (%d bit%s a pixel), 60.15 Hz; the %s\" RGB monitor%s", w, h,
+             depth_text(c.depth), c.depth, c.depth == 1 ? "" : "s", settings.monitor == MAC_MONITOR_12 ? "12" : "13",
+             c.blanked ? "; blanked" : "");
+    emu_json_row(j, "Screen", text);
+    palette_row(j, &c);
+
+    /* Sound: the ASC's FIFOs (22.257 kHz) */
+    int n = snprintf(text, sizeof(text), "The ASC ($%02X, %s's): %s at 22.257 kHz; ", c.asc_version,
+                     lc3 ? "Sonora" : "the V8", lc3 ? "stereo" : "mono");
+    if (c.record) {
+        snprintf(text + n, sizeof(text) - n, "set to record");
+    } else if (lc3) {
+        snprintf(text + n, sizeof(text) - n, "FIFOs A %u, B %u of 1024 bytes%s", c.fifo[0], c.fifo[1],
+                 c.fifo[0] || c.fifo[1] ? ": playing" : "");
+    } else {
+        snprintf(text + n, sizeof(text) - n, "FIFO A %u of 1024 bytes%s", c.fifo[0], c.fifo[0] ? ": playing" : "");
+    }
+    emu_json_row(j, "Sound", text);
+
+    emu_json_row(j, "Keyboard", "ADB, by position (US); Alt Option, Windows Command, Insert Help, Num Lock Clear, "
+                 "Print Screen to Pause F13-F15; any mouse button clicks");
+
+    /* Interrupts: VIA1's enables (level 1), the pseudo-VIA's (level 2) */
+    static const char *const via_names[7] = { "CA2", "CA1 (the 60.15 Hz tick)", "SR (Egret)", "CB2", "CB1", "T2",
+                                              "T1" };
+    n = snprintf(text, sizeof(text), "VIA1:");
+    int k = 0;
+    for (int b = 0; b < 7; b++) {
+        if (c.via_ier & (1u << b)) {
+            n += snprintf(text + n, sizeof(text) - n, "%s %s", k++ ? "," : "", via_names[b]);
+        }
+    }
+    n += snprintf(text + n, sizeof(text) - n, "%s; pseudo-VIA:", k ? "" : " none");
+    k = 0;
+    if ((c.pvia_ier & 0x02) && (c.pvia_slots & 0x40)) {
+        n += snprintf(text + n, sizeof(text) - n, " the video's VBL");
+        k++;
+    }
+    if (c.pvia_ier & 0x10) {
+        n += snprintf(text + n, sizeof(text) - n, "%s the ASC", k++ ? "," : "");
+    }
+    snprintf(text + n, sizeof(text) - n, "%s", k ? "" : " none");
+    emu_json_row(j, "Interrupts", text);
+
+    if (c.clock_offset) {
+        snprintf(text, sizeof(text), "ADB, PRAM, the clock: the board's time %+ld s", (long)c.clock_offset);
+    } else {
+        snprintf(text, sizeof(text), "ADB, PRAM, the clock: the board's time");
+    }
+    emu_json_row(j, "Egret", text);
+    emu_json_row(j, "Disks", "Three drives, a driver in .Sony's place: images of any size (HFS, HFS+, MFS); no "
+                 "SCSI or floppy hardware");
+}
+
 static void status(emu_json_t *j, int section)
 {
     char text[160];
     if (section == EMU_STATUS_ROWS) {
-        snprintf(text, sizeof(text), "Macintosh %s, %lu MB", mac_model() == MAC_MODEL_LC3 ? "LC III" : "LC II",
-                 (unsigned long)(s_cfg.ram_size >> 20));
-        emu_json_row(j, "System", text);
-        emu_json_row(j, "ROM", s_rom_name ? s_rom_name : "-");
-        snprintf(text, sizeof(text), "68030 at %.1f MHz <span class=\"dim\">(%d%% of the %s's)</span>",
-                 mac_cpu_mhz(), mac_cpu_speed() * 100 / MAC_SPEED_NATIVE,
-                 mac_model() == MAC_MODEL_LC3 ? "LC III" : "LC II");
-        emu_json_row(j, "CPU", text);
-        int w, h;
-        mac_screen_size(&w, &h);
-        snprintf(text, sizeof(text), "%d × %d, %s, %d Hz", w, h, depth_text(mac_screen_depth()), MAC_SCREEN_HZ);
-        emu_json_row(j, "Screen", text);
-        uint32_t ram_free, system_free;
-        if (mac_ram_free(&ram_free, &system_free)) {
-            snprintf(text, sizeof(text), "%lu KB of %lu MB <span class=\"dim\">(system heap %lu KB free)</span>",
-                     (unsigned long)(ram_free / 1024), (unsigned long)(s_cfg.ram_size >> 20),
-                     (unsigned long)(system_free / 1024));
-            emu_json_row_bar(j, "Free RAM", text, 100 - (int)((uint64_t)ram_free * 100 / s_cfg.ram_size));
-        }
+        status_rows(j);
         return;
     }
     mac_disk_status_t ds;

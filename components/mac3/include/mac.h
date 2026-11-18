@@ -118,6 +118,26 @@ int mac_cpu_speed(void);
 float mac_cpu_mhz(void);    /* the speed as the 68030's clock */
 
 void mac_get_status(mac_status_t *status);
+
+/* The web page's machine card: the chips' state now, plain copies (read
+ * from another task while the Mac runs: now and then a moment's mix;
+ * nothing here changes the machine)
+ */
+typedef struct {
+    bool overlay;                   /* the ROM at 0 (power-on) */
+    bool mode32;                    /* 32-bit addressing (MMU32Bit at $CB2) */
+    int depth;                      /* bits a pixel */
+    bool blanked;                   /* the LC III's video blanked, or not in the monitor's mode */
+    uint8_t clut[256][3];           /* the colour table: red, green, blue */
+    uint8_t asc_version;            /* $E8 the V8's, $BC Sonora's */
+    uint16_t fifo[2];               /* bytes waiting in FIFOs A and B (of 1024) */
+    bool record;                    /* the ASC set to record ($80A bit 0) */
+    uint8_t via_ier;                /* VIA1's interrupt enables */
+    uint8_t pvia_ier, pvia_slots;   /* the pseudo-VIA's ($13) and its slots' ($12) */
+    int32_t clock_offset;           /* Egret's clock less the board's, seconds */
+} mac_chips_t;
+
+void mac_get_chips(mac_chips_t *chips);
 mac_model_t mac_model(void);
 
 /* Free RAM as the Mac OS sees it (see ../esp32mac); false before the OS is up */

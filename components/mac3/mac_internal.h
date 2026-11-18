@@ -239,6 +239,7 @@ void pvia_write(uint32_t address, uint8_t value);
 void pvia_vbl(bool active);
 void pvia_asc_irq(bool active);
 uint8_t pvia_video_config(void);    /* register $10: bits 0-2 depth */
+void pvia_enables(uint8_t *ier, uint8_t *slots);    /* $13, $12 (the web page's) */
 void lc_set_ram_config(uint8_t config);
 void lc_set_24bit(bool on);
 
@@ -251,6 +252,7 @@ void egret_frame(void);
 void egret_sr_written(void);
 uint32_t egret_mac_time(void);
 uint32_t host_mac_time(void);       /* seconds since 1904 in local time */
+int64_t egret_clock_offset(void);   /* the Mac's time less the host's */
 
 /* video.c: the built-in video, the V8's (the Ariel colour table, the mode
  * in the pseudo-VIA) or Sonora's (its own mode registers and colour table)
@@ -266,6 +268,7 @@ void video_screen_size(int *w, int *h);
 int video_screen_depth(void);
 void video_render_line(int y, uint16_t *dst);
 bool video_screen_changed(void);
+void video_status(bool *blanked, uint8_t clut[256][3]);    /* (the web page's) */
 
 /* adb.c: ADB keyboard (address 2) and mouse (3) */
 void adb_reset(void);
@@ -301,6 +304,7 @@ void asc_write(uint32_t address, uint8_t value);
 void asc_event(void);
 void asc_frame_end(void);
 void asc_irq_changed(bool active);  /* in the machine: where the line goes */
+void asc_status(uint8_t *version, uint16_t fifo[2], bool *record);     /* (the web page's) */
 
 /* chips.c */
 void scc_reset(void);

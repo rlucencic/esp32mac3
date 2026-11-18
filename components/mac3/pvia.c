@@ -89,6 +89,12 @@ uint8_t pvia_video_config(void)
     return pv.regs[0x10];
 }
 
+void pvia_enables(uint8_t *ier, uint8_t *slots)
+{
+    *ier = pv.regs[0x13];
+    *slots = pv.regs[0x12];
+}
+
 uint8_t pvia_read(uint32_t address)
 {
     uint32_t r = address & (pv.sonora ? 0x1F : 0x13);

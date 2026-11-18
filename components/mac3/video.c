@@ -273,6 +273,12 @@ void video_render_line(int y, uint16_t *dst)
     }
 }
 
+void video_status(bool *blanked, uint8_t clut[256][3])
+{
+    *blanked = ar.sonora && ((ar.mode & 0x80) || (ar.mode & 0x1F) != sonora_mode_id());
+    memcpy(clut, ar.clut, sizeof(ar.clut));
+}
+
 bool video_screen_changed(void)
 {
     if (mac.vram_written || ar.changed) {

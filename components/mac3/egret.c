@@ -95,6 +95,11 @@ uint32_t host_mac_time(void)
     return (uint32_t)(days * 86400 + tm.tm_hour * 3600 + tm.tm_min * 60 + tm.tm_sec);
 }
 
+int64_t egret_clock_offset(void)
+{
+    return eg.time_offset;
+}
+
 uint32_t egret_mac_time(void)
 {
     return (uint32_t)(host_mac_time() + eg.time_offset);

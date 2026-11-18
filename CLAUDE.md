@@ -54,6 +54,15 @@ bash -c '. $IDF_PATH/export.sh >/dev/null 2>&1; \
   host build). Its FPU is always there (both Macs take a 68882 in a slot).
 - `../esp32emu/tools/emu_console.py PORT log N | screenshot F.png | lcd F.png | send "cmd" ... | info | reset | profile ELF`
   with the IDF venv's Python (`-I`). `curl http://macintosh3.local/api/status`.
+  The web page's machine card (`status_rows()` in `main.c`, the core's
+  read-only `mac_get_chips()`): System (CPU, FPU, ASIC, RAM and SIMMs),
+  CPU (speed, 24/32-bit addressing), ROM (where from, the overlay),
+  Memory (the 32-bit map), Free RAM, Screen (size, depth, monitor,
+  blanked), Palette (the colour table's entries in use as swatches up to
+  16; at 8 bits every 8th entry as a 32 x 1 BMP: 256 swatches would take
+  ~9 KB of the reply's 4096 bytes), Sound (the ASC's version and FIFOs),
+  Keyboard, Interrupts (VIA1's and the pseudo-VIA's enables), Egret (the
+  clock's offset), Disks. Rows ~1.2-1.6 KB.
 - Flashing restarts the board and ends the user's Mac session: say so first.
 - Uploading a 256 MB disk image through the web page takes ~10 minutes
   (~430 KB/s).

@@ -414,6 +414,18 @@ bool mac_init(const mac_config_t *config)
     return true;
 }
 
+void mac_get_chips(mac_chips_t *c)
+{
+    c->overlay = mac.overlay;
+    c->mode32 = !mac.overlay && mac_peek8(0x0CB2) != 0;
+    c->depth = mac.ops ? mac.ops->screen_depth() : 1;
+    video_status(&c->blanked, c->clut);
+    asc_status(&c->asc_version, c->fifo, &c->record);
+    c->via_ier = via1.ier;
+    pvia_enables(&c->pvia_ier, &c->pvia_slots);
+    c->clock_offset = (int32_t)egret_clock_offset();
+}
+
 void mac_get_status(mac_status_t *status)
 {
     status->frames = mac.frames;
