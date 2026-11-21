@@ -45,6 +45,7 @@ It's the 68030 sibling of
 [esp32mac2](https://github.com/rlucencic/esp32mac2) (Macintosh LC and II, a
 68020) and [esp32mac](https://github.com/rlucencic/esp32mac) (the compact
 black-and-white Macs: Plus, SE and Classic), next to
+[esp32oric](https://github.com/rlucencic/esp32oric) (Oric Atmos and Oric-1),
 [esp32ste](https://github.com/rlucencic/esp32ste) (Atari STE),
 [esp32cpc](https://github.com/rlucencic/esp32cpc) (Amstrad CPC),
 [esp32zx](https://github.com/rlucencic/esp32zx) (ZX Spectrum),
